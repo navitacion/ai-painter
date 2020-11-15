@@ -172,7 +172,7 @@ class CycleGAN_LightningSystem(pl.LightningModule):
 
         if self.cnt_epoch % 10 == 0:
             # Display Model Output
-            target_img_paths = glob.glob('./data/gan-getting-started/photo_jpg/*.jpg')[:8]
+            target_img_paths = glob.glob('./data/photo_jpg/*.jpg')[:8]
             target_imgs = [self.transform(Image.open(path), phase='test') for path in target_img_paths]
             target_imgs = torch.stack(target_imgs, dim=0)
             target_imgs = target_imgs.cuda()
