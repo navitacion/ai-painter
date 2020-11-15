@@ -1,0 +1,10 @@
+hydra:
+  run:
+    dir: hydra_output/
+
+comet_ml:
+  api_key: YOUR API KEY
+  project_name: YOUR PROJECT NAME
+
+train:
+  style: monet

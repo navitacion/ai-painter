@@ -1,0 +1,12 @@
+streamlit
+pytorch_lightning
+hydra-core
+comet_ml
+pandas
+scipy
+matplotlib
+seaborn
+scikit-learn
+jupyter
+jupyterlab
+opencv-python
