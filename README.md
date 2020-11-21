@@ -2,6 +2,9 @@
 
 CycleGANを用いた画像スタイル変換アプリ
 
+[こちら](https://share.streamlit.io/navitacion/ai-painter/app.py)
+からお試し
+
 ## アプリについて
 
 本アプリはCycleGANによる画像スタイルを変換することができます。
@@ -17,7 +20,7 @@ CycleGANを用いた画像スタイル変換アプリ
 - [ゴッホ](https://www.kaggle.com/ipythonx/van-gogh-paintings)
 
 
-## 起動方法
+## 起動方法（ローカル）
 
 下記コマンドを実行する
 
