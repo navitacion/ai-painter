@@ -5,7 +5,7 @@ from comet_ml import Experiment
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-from src.utils.lightning import MonetDataModule, CycleGAN_LightningSystem, VanGoghDataModule
+from src.utils.lightning import DataModule, CycleGAN_LightningSystem
 from src.models.cycle_gan import CycleGAN_Unet_Generator, CycleGAN_Discriminator
 from src.utils.utils import ImageTransform, seed_everything, init_weights
 
@@ -36,13 +36,15 @@ def main(cfg: DictConfig):
     experiment = Experiment(api_key=api_key,
                             project_name=project_name)
 
+    # Select Style Images
     if cfg.train.style == 'monet':
-        dm = MonetDataModule(data_dir, transform, batch_size, phase='train', seed=seed)
-
+        style_img_dir = os.path.join(data_dir, 'monet_img')
     elif cfg.train.style == 'vangogh':
-        dm = VanGoghDataModule(data_dir, transform, batch_size, phase='train', seed=seed)
+        style_img_dir = os.path.join(data_dir, 'van_gogh_img')
     else:
         raise TypeError("Please enter the correct arguments 'train.style' ")
+
+    dm = DataModule(data_dir, style_img_dir, transform, batch_size, phase='train', seed=seed)
 
     G_basestyle = CycleGAN_Unet_Generator()
     G_stylebase = CycleGAN_Unet_Generator()
