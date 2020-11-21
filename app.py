@@ -24,7 +24,6 @@ def model_builder(style='monet'):
 def app():
     # Title
     st.title('AI Painter')
-    st.markdown('Produce by [navi](https://twitter.com/navitacion)')
     st.markdown('---')
     st.markdown('This app is a demo of CycleGAN')
     st.markdown("v1: You can use the painter's style written below")
