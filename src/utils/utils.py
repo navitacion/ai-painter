@@ -1,4 +1,5 @@
-import os, random
+import os, random, base64
+from io import BytesIO
 import numpy as np
 from PIL import Image
 import torch
@@ -91,3 +92,17 @@ class CycleGanDataset(Dataset):
         style_img = self.transform(style_img, self.phase)
 
         return base_img, style_img
+
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    """
+    reference: https://discuss.streamlit.io/t/how-to-download-file-in-streamlit/1806/27
+    :param bin_file:
+    :param file_label:
+    :return:
+    """
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">Download {file_label}</a>'
+    return href
