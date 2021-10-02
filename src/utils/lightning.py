@@ -1,6 +1,7 @@
 import os, random, time, cv2
 import numpy as np
 from pathlib import Path
+from PIL import Image
 import wandb
 
 import torch
@@ -133,7 +134,7 @@ class CycleGAN_LightningSystem(pl.LightningModule):
             data_dir = Path(self.cfg.data.data_dir)
             target_img_paths = [str(path) for path in data_dir.glob(f'{self.cfg.data.base_img_folder}/**/*.jpg')][:8]
 
-            target_imgs = [cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in target_img_paths]
+            target_imgs = [Image.open(path) for path in target_img_paths]
             target_imgs = [self.transform(img, phase='test') for img in target_imgs]
             target_imgs = torch.stack(target_imgs, dim=0)
             target_imgs = target_imgs.cuda()
