@@ -1,35 +1,24 @@
 from abc import ABCMeta
-import albumentations as albu
-from albumentations.pytorch import ToTensorV2
+from torchvision import transforms
 
 
-class BaseTransform(metaclass=ABCMeta):
-    def __init__(self):
-        self.transform = None
+class ImageTransform:
+    def __init__(self, img_size=256):
+        self.transform = {
+            'train': transforms.Compose([
+                transforms.Resize((img_size, img_size)),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5], std=[0.5])
+            ]),
+            'test': transforms.Compose([
+                transforms.Resize((img_size, img_size)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.5], std=[0.5])
+            ])}
 
     def __call__(self, img, phase='train'):
-        transformed = self.transform[phase](image=img)['image']
+        img = self.transform[phase](img)
 
-        return transformed
-
-
-class ImageTransform(BaseTransform):
-    def __init__(self, cfg):
-        super(ImageTransform, self).__init__()
-
-        try:
-            transform_train_list = [getattr(albu, name)(**kwargs) for name, kwargs in dict(cfg.aug_train).items()]
-            transform_train_list.append(ToTensorV2())
-        except:
-            transform_train_list = [ToTensorV2()]
-
-        try:
-            transform_test_list = [getattr(albu, name)(**kwargs) for name, kwargs in dict(cfg.aug_test).items()]
-            transform_test_list.append(ToTensorV2())
-        except:
-            transform_test_list = [ToTensorV2()]
-
-        self.transform = {
-            'train': albu.Compose(transform_train_list, p=1.0),
-            'test': albu.Compose(transform_test_list, p=1.0),
-        }
+        return img

@@ -2,12 +2,12 @@ import os
 import numpy as np
 from PIL import Image
 from io import BytesIO
-import matplotlib.pyplot as plt
 import streamlit as st
 import torch
 
 from src.models.cycle_gan import CycleGAN_Unet_Generator
-from src.utils.utils import ImageTransform, get_binary_file_downloader_html
+from src.utils.utils import get_binary_file_downloader_html
+from src.utils.transforms import ImageTransform
 
 @st.cache
 def model_builder(style='monet'):

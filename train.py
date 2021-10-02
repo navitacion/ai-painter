@@ -33,10 +33,9 @@ def main(cfg: DictConfig):
     logger = WandbLogger(project='AI-Painter', reinit=True)
     logger.log_hyperparams(dict(cfg.data))
     logger.log_hyperparams(dict(cfg.train))
-    logger.log_hyperparams(dict(cfg.aug_train))
 
     # Transforms  --------------------------------------------------
-    transform = ImageTransform(cfg)
+    transform = ImageTransform(cfg.data.img_size)
 
     # DataModule  --------------------------------------------------
     dm = DataModule(cfg, transform, phase='train')

@@ -18,10 +18,10 @@ class CycleGanDataset(Dataset):
     def __getitem__(self, idx):
         base_img_path = self.base_img_paths[idx]
         style_img_path = self.style_img_paths[idx]
-        base_img = cv2.imread(base_img_path)
-        base_img = cv2.cvtColor(base_img, cv2.COLOR_BGR2RGB)
-        style_img = cv2.imread(style_img_path)
-        style_img = cv2.cvtColor(style_img, cv2.COLOR_BGR2RGB)
+        base_img = Image.open(base_img_path)
+        # base_img = cv2.cvtColor(base_img, cv2.COLOR_BGR2RGB)
+        style_img = Image.open(style_img_path)
+        # style_img = cv2.cvtColor(style_img, cv2.COLOR_BGR2RGB)
 
         base_img = self.transform(base_img, self.phase)
         style_img = self.transform(style_img, self.phase)

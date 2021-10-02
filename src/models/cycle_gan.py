@@ -49,10 +49,12 @@ class CycleGAN_Unet_Generator(nn.Module):
             Downsample(filter * 2, filter * 4),  # (b, filter * 4, 32, 32)
             Downsample(filter * 4, filter * 8),  # (b, filter * 8, 16, 16)
             Downsample(filter * 8, filter * 8), # (b, filter * 8, 8, 8)
+            Downsample(filter * 8, filter * 8), # (b, filter * 8, 8, 8)
         ])
 
         self.upsamples = nn.ModuleList([
             Upsample(filter * 8, filter * 8),
+            Upsample(filter * 16, filter * 8),
             Upsample(filter * 16, filter * 4, dropout=False),
             Upsample(filter * 8, filter * 2, dropout=False),
             Upsample(filter * 4, filter, dropout=False)
@@ -86,6 +88,7 @@ class CycleGAN_Discriminator(nn.Module):
             Downsample(3, filter, kernel_size=4, stride=2, apply_instancenorm=False),
             Downsample(filter, filter * 2, kernel_size=4, stride=2),
             Downsample(filter * 2, filter * 4, kernel_size=4, stride=2),
+            Downsample(filter * 4, filter * 4, kernel_size=4, stride=2),
             Downsample(filter * 4, filter * 8, kernel_size=4, stride=1)
         )
 
