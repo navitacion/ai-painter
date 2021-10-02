@@ -151,7 +151,7 @@ class CycleGAN_LightningSystem(pl.LightningModule):
             joined_images = joined_images_tensor.detach().cpu().numpy().astype(int)
             joined_images = np.transpose(joined_images, [1, 2, 0])
 
-            wandb.log({"output_img": [wandb.Image(joined_images, caption=f'Epoch {self.current_epoch}')]})
+            wandb.log({"output_img": [wandb.Image(joined_images, caption=f'Epoch {self.current_epoch}')]}, step=self.current_epoch)
 
             # Save checkpoints
             if self.checkpoint_path is not None:
