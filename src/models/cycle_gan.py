@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 class Upsample(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=4, stride=2, padding=1, dropout=True):
@@ -100,6 +99,7 @@ class CycleGAN_Discriminator(nn.Module):
 
 
 if __name__ == '__main__':
+    # Sanity Check  --------------------------------------------------
     z = torch.randn(4, 3, 256, 256)
 
     net = CycleGAN_Unet_Generator()

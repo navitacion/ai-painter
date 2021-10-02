@@ -1,21 +1,5 @@
-import os, random, base64
-from io import BytesIO
-import numpy as np
-from PIL import Image
-import torch
+import os, base64
 from torch import nn
-from torchvision import transforms
-from torch.utils.data import Dataset
-
-
-def seed_everything(seed):
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
 
 
 def init_weights(net, init_type='normal', init_gain=0.02):
@@ -48,50 +32,7 @@ def init_weights(net, init_type='normal', init_gain=0.02):
 
     net.apply(init_func)  # apply the initialization function <init_func>
 
-
-# Image Augmentations ---------------------------------------------------------------------------
-class ImageTransform:
-    def __init__(self, img_size=256):
-        self.transform = {
-            'train': transforms.Compose([
-                transforms.Resize((img_size, img_size)),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
-            ]),
-            'test': transforms.Compose([
-                transforms.Resize((img_size, img_size)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
-            ])}
-
-    def __call__(self, img, phase='train'):
-        img = self.transform[phase](img)
-
-        return img
-
-# Monet Dataset ---------------------------------------------------------------------------
-class CycleGanDataset(Dataset):
-    def __init__(self, base_img_paths, style_img_paths, transform, phase='train'):
-        self.base_img_paths = base_img_paths
-        self.style_img_paths = style_img_paths
-        self.transform = transform
-        self.phase = phase
-
-    def __len__(self):
-        return min([len(self.base_img_paths), len(self.style_img_paths)])
-
-    def __getitem__(self, idx):
-        base_img_path = self.base_img_paths[idx]
-        style_img_path = self.style_img_paths[idx]
-        base_img = Image.open(base_img_path)
-        style_img = Image.open(style_img_path)
-
-        base_img = self.transform(base_img, self.phase)
-        style_img = self.transform(style_img, self.phase)
-
-        return base_img, style_img
+    return net
 
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):

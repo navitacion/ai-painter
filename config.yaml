@@ -1,0 +1,32 @@
+hydra:
+  run:
+    dir: hydra_output/
+
+data:
+  data_dir: ./data
+  asset_dir: ./assets
+  style_img_folder: monet_jpg
+  base_img_folder: photo_jpg
+  img_size: &img_size 256
+
+train:
+  seed: 42
+  batch_size: 1
+  num_workers: 4
+  epoch: 500
+  reconstr_w: 10
+  identity_w: 5
+
+  lr:
+    G: 0.0002
+    D: 0.0002
+
+aug_train:
+  Resize: {"height": *img_size, "width": *img_size}
+  HorizontalFlip: {"p": 0.5}
+  VerticalFlip: {"p": 0.5}
+  Normalize: {"mean": [0.5, 0.5, 0.5], "std": [0.5, 0.5, 0.5]}
+
+aug_test:
+  Resize: {"height": *img_size, "width": *img_size}
+  Normalize: {"mean": [0.5, 0.5, 0.5], "std": [0.5, 0.5, 0.5]}
