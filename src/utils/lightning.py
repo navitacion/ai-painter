@@ -1,7 +1,7 @@
-import os, glob, random, time
+import os, random, time, cv2
 import numpy as np
-import pandas as pd
-from PIL import Image
+from pathlib import Path
+import wandb
 
 import torch
 from torchvision.utils import make_grid
@@ -9,56 +9,56 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
-from .utils import CycleGanDataset
+from .dataset import CycleGanDataset
 
 # DataModule ---------------------------------------------------------------------------
 class DataModule(pl.LightningDataModule):
-    def __init__(self, data_dir, style_img_dir, transform, batch_size, phase='train', seed=0):
-        super(MonetDataModule, self).__init__()
-        self.data_dir = data_dir
-        self.style_img_dir = style_img_dir
+    def __init__(self, cfg, transform, phase='train'):
+        super(DataModule, self).__init__()
+        self.cfg = cfg
+        self.data_dir = Path(cfg.data.data_dir)
         self.transform = transform
-        self.batch_size = batch_size
         self.phase = phase
-        self.seed = seed
 
     def prepare_data(self):
-        self.base_img_paths = glob.glob(os.path.join(self.data_dir, 'photo_jpg', '*.jpg'))
-        self.style_img_paths = glob.glob(os.path.join(self.style_img_dir, '*.jpg'))
+        self.style_img_paths = [str(path) for path in self.data_dir.glob(f'{self.cfg.data.style_img_folder}/**/*.jpg')]
+        self.base_img_paths = [str(path) for path in self.data_dir.glob(f'{self.cfg.data.base_img_folder}/**/*.jpg')]
 
-    def train_dataloader(self):
+
+    def _shuffle_imgpaths(self):
         random.seed()
         random.shuffle(self.base_img_paths)
         random.shuffle(self.style_img_paths)
-        random.seed(self.seed)
+        random.seed(self.cfg.train.seed)
+
+    def train_dataloader(self):
+        self._shuffle_imgpaths()
         self.train_dataset = CycleGanDataset(self.base_img_paths, self.style_img_paths, self.transform, self.phase)
 
         return DataLoader(self.train_dataset,
-                          batch_size=self.batch_size,
+                          batch_size=self.cfg.train.batch_size,
                           shuffle=True,
-                          num_workers=4,
-                          pin_memory=True
+                          num_workers=self.cfg.train.num_workers,
+                          pin_memory=False
                           )
 
 
 # CycleGAN - Lightning Module ---------------------------------------------------------------------------
 class CycleGAN_LightningSystem(pl.LightningModule):
-    def __init__(self, G_basestyle, G_stylebase, D_base, D_style, lr, transform, experiment,
-                 reconstr_w=10, id_w=2, checkpoint_path=None):
+    def __init__(self, cfg, transform, G_basestyle, G_stylebase, D_base, D_style):
         super(CycleGAN_LightningSystem, self).__init__()
+        self.cfg = cfg
         self.G_basestyle = G_basestyle
         self.G_stylebase = G_stylebase
         self.D_base = D_base
         self.D_style = D_style
-        self.lr = lr
+        self.lr = dict(cfg.train.lr)
         self.transform = transform
-        self.reconstr_w = reconstr_w
-        self.id_w = id_w
-        self.experiment = experiment
-        self.checkpoint_path = checkpoint_path
-        self.cnt_train_step = 0
-        self.cnt_epoch = 0
+        self.reconstr_w = cfg.train.reconstr_w
+        self.identity_w = cfg.train.identity_w
+        self.checkpoint_path = cfg.data.asset_dir
 
+        # Loss_fn
         self.mae = nn.L1Loss()
         self.generator_loss = nn.MSELoss()
         self.discriminator_loss = nn.MSELoss()
@@ -79,9 +79,6 @@ class CycleGAN_LightningSystem(pl.LightningModule):
         valid = torch.ones(b, 1, 30, 30).cuda()
         fake = torch.zeros(b, 1, 30, 30).cuda()
 
-        # Count up
-        self.cnt_train_step += 1
-
         # Train Generator
         if optimizer_idx == 0 or optimizer_idx == 1:
             # Validity
@@ -96,15 +93,18 @@ class CycleGAN_LightningSystem(pl.LightningModule):
             reconstr_loss = (reconstr_base + reconstr_style) / 2
 
             # Identity
-            id_base = self.mae(self.G_stylebase(base_img), base_img)
-            id_style = self.mae(self.G_basestyle(style_img), style_img)
-            id_loss = (id_base + id_style) / 2
+            identity_base = self.mae(self.G_stylebase(base_img), base_img)
+            identity_style = self.mae(self.G_basestyle(style_img), style_img)
+            identity_loss = (identity_base + identity_style) / 2
 
             # Loss Weight
-            G_loss = val_loss + self.reconstr_w * reconstr_loss + self.id_w * id_loss
+            G_loss = val_loss + self.reconstr_w * reconstr_loss + self.identity_w * identity_loss
 
-            logs = {'loss': G_loss, 'validity': val_loss, 'reconstr': reconstr_loss, 'identity': id_loss}
-            # self.experiment.log_metrics(logs, step=self.cnt_train_step)
+            logs = {'loss': G_loss, 'validity': val_loss.detach(), 'reconstr': reconstr_loss.detach(), 'identity': identity_loss.detach()}
+            self.log(f'train/G_loss', G_loss, on_epoch=True)
+            self.log(f'train/validity', val_loss, on_epoch=True)
+            self.log(f'train/reconstr', reconstr_loss, on_epoch=True)
+            self.log(f'train/identity', identity_loss, on_epoch=True)
 
             return logs
 
@@ -122,31 +122,18 @@ class CycleGAN_LightningSystem(pl.LightningModule):
             D_loss = (D_gen_loss + D_base_valid_loss + D_style_valid_loss) / 3
 
             logs = {'loss': D_loss}
-            # self.experiment.log_metric('D_loss', D_loss, step=self.cnt_train_step)
+            self.log(f'train/D_loss', D_loss, on_epoch=True)
 
             return logs
 
     def training_epoch_end(self, outputs):
-        self.cnt_epoch += 1
-
-        avg_loss = sum([torch.stack([x['loss'] for x in outputs[i]]).mean().detach() / 4 for i in range(4)])
-        G_mean_loss = sum([torch.stack([x['loss'] for x in outputs[i]]).mean().detach() / 2 for i in [0, 1]])
-        D_mean_loss = sum([torch.stack([x['loss'] for x in outputs[i]]).mean().detach() / 2 for i in [2, 3]])
-        validity = sum([torch.stack([x['validity'] for x in outputs[i]]).mean().detach() / 2 for i in [0, 1]])
-        reconstr = sum([torch.stack([x['reconstr'] for x in outputs[i]]).mean().detach() / 2 for i in [0, 1]])
-        identity = sum([torch.stack([x['identity'] for x in outputs[i]]).mean().detach() / 2 for i in [0, 1]])
-
-        logs = {
-            'avg_loss': avg_loss, 'G_mean_loss': G_mean_loss, 'D_mean_loss': D_mean_loss,
-            'validity': validity, 'reconstr': reconstr, 'identity': identity
-        }
-
-        self.experiment.log_metrics(logs, epoch=self.cnt_epoch)
-
-        if self.cnt_epoch % 10 == 0:
+        if self.current_epoch % 10 == 0:
             # Display Model Output
-            target_img_paths = glob.glob('./data/photo_jpg/*.jpg')[:8]
-            target_imgs = [self.transform(Image.open(path), phase='test') for path in target_img_paths]
+            data_dir = Path(self.cfg.data.data_dir)
+            target_img_paths = [str(path) for path in data_dir.glob(f'{self.cfg.data.base_img_folder}/**/*.jpg')][:8]
+
+            target_imgs = [cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB) for path in target_img_paths]
+            target_imgs = [self.transform(img, phase='test') for img in target_imgs]
             target_imgs = torch.stack(target_imgs, dim=0)
             target_imgs = target_imgs.cuda()
 
@@ -162,17 +149,16 @@ class CycleGAN_LightningSystem(pl.LightningModule):
             joined_images = joined_images_tensor.detach().cpu().numpy().astype(int)
             joined_images = np.transpose(joined_images, [1, 2, 0])
 
-            self.experiment.log_image(joined_images, name='output_img', step=self.cnt_epoch, image_channels='last')
+            wandb.log({"output_img": [wandb.Image(joined_images, caption=f'Epoch {self.current_epoch}')]})
 
             # Save checkpoints
             if self.checkpoint_path is not None:
                 model = self.G_basestyle
-                weight_name = f'weight_epoch_{self.cnt_epoch}.pth'
+                weight_name = f'{self.cfg.data.style_img_folder}_weight_epoch_{self.current_epoch}.pth'
                 weight_path = os.path.join(self.checkpoint_path, weight_name)
                 torch.save(model.state_dict(), weight_path)
+                wandb.save(weight_path)
                 time.sleep(3)
-                self.experiment.log_asset(file_data=weight_path)
-                os.remove(weight_path)
         else:
             pass
 

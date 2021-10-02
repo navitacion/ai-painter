@@ -1,82 +1,66 @@
 import os
 import hydra
+import wandb
+import shutil
 from omegaconf import DictConfig
-from comet_ml import Experiment
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.loggers import WandbLogger
 
 from src.utils.lightning import DataModule, CycleGAN_LightningSystem
 from src.models.cycle_gan import CycleGAN_Unet_Generator, CycleGAN_Discriminator
-from src.utils.utils import ImageTransform, seed_everything, init_weights
+from src.utils.utils import init_weights
+from src.utils.transforms import ImageTransform
 
 
-@hydra.main('config.yml')
+@hydra.main(config_path='.', config_name='config')
 def main(cfg: DictConfig):
+    print('Train CycleGAN Model')
     cur_dir = hydra.utils.get_original_cwd()
     os.chdir(cur_dir)
-    # Config  ###################################################################
-    api_key = cfg.comet_ml.api_key
-    project_name = cfg.comet_ml.project_name
-    data_dir = './data/'
-    checkpoint_path = './checkpoints'
-    transform = ImageTransform(img_size=256)
-    batch_size = 1
-    lr = {
-        'G': 0.0002,
-        'D': 0.0002
+    seed_everything(cfg.train.seed)
+
+    # Init asset dir  --------------------------------------------------
+    try:
+        # Remove checkpoint folder
+        shutil.rmtree(cfg.data.asset_dir)
+    except:
+        pass
+
+    os.makedirs(cfg.data.asset_dir, exist_ok=True)
+
+    # Logger  --------------------------------------------------
+    wandb.login()
+    logger = WandbLogger(project='AI-Painter', reinit=True)
+    logger.log_hyperparams(dict(cfg.data))
+    logger.log_hyperparams(dict(cfg.train))
+    logger.log_hyperparams(dict(cfg.aug_train))
+
+    # Transforms  --------------------------------------------------
+    transform = ImageTransform(cfg)
+
+    # DataModule  --------------------------------------------------
+    dm = DataModule(cfg, transform, phase='train')
+
+    # Model Networks  --------------------------------------------------
+    nets = {
+        'G_basestyle': init_weights(CycleGAN_Unet_Generator(), init_type='normal'),
+        'G_stylebase': init_weights(CycleGAN_Unet_Generator(), init_type='normal'),
+        'D_base': init_weights(CycleGAN_Discriminator(), init_type='normal'),
+        'D_style': init_weights(CycleGAN_Discriminator(), init_type='normal'),
     }
-    epoch = 500
-    seed = 42
-    reconstr_w = 10
-    id_w = 5
 
-    seed_everything(seed)
+    # Lightning System  --------------------------------------------------
+    model = CycleGAN_LightningSystem(cfg, transform, **nets)
 
-    # Comet_ml
-    experiment = Experiment(api_key=api_key,
-                            project_name=project_name)
-
-    # Select Style Images
-    if cfg.train.style == 'monet':
-        style_img_dir = os.path.join(data_dir, 'monet_img')
-    elif cfg.train.style == 'vangogh':
-        style_img_dir = os.path.join(data_dir, 'van_gogh_img')
-    else:
-        raise TypeError("Please enter the correct arguments 'train.style' ")
-
-    dm = DataModule(data_dir, style_img_dir, transform, batch_size, phase='train', seed=seed)
-
-    G_basestyle = CycleGAN_Unet_Generator()
-    G_stylebase = CycleGAN_Unet_Generator()
-    D_base = CycleGAN_Discriminator()
-    D_style = CycleGAN_Discriminator()
-
-    # Init Weight
-    for net in [G_basestyle, G_stylebase, D_base, D_style]:
-        init_weights(net, init_type='normal')
-
-    model = CycleGAN_LightningSystem(G_basestyle, G_stylebase, D_base, D_style,
-                                     lr, transform, experiment, reconstr_w, id_w, checkpoint_path)
-
-
-    checkpoint_callback = ModelCheckpoint(
-        filepath='./checkpoints',
-        save_top_k=-1,
-        verbose=False,
-        mode='min',
-        prefix=f'cyclegan'
-    )
-
+    # Train  --------------------------------------------------
     trainer = Trainer(
-        logger=False,
-        max_epochs=epoch,
+        logger=logger,
+        max_epochs=cfg.train.epoch,
         gpus=1,
-        checkpoint_callback=checkpoint_callback,
         reload_dataloaders_every_epoch=True,
         num_sanity_val_steps=0,  # Skip Sanity Check
     )
 
-    # Train
     trainer.fit(model, datamodule=dm)
 
 
