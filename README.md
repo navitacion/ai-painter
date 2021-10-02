@@ -25,9 +25,7 @@ CycleGANを用いた画像スタイル変換アプリ
 下記コマンドを実行する
 
 ```
-docker build -t ai-painter .
-docker run -it --rm -v $(pwd):/workspace ai-painter -p 8501:8501 bash
-streamlit run app.py
+docker-compose up --build -d
 ```
 
 実行後、下記URLにアクセスする
