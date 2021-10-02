@@ -1,13 +1,6 @@
 streamlit
-pytorch_lightning
-hydra-core
-comet_ml
-pandas
-scipy
-matplotlib
 seaborn
-scikit-learn
-jupyter
-jupyterlab
+albumentations==0.5.2
+wandb==0.12.2
+timm==0.4.12
 opencv-python
-torchvision
