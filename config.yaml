@@ -13,9 +13,9 @@ train:
   seed: 42
   batch_size: 1
   num_workers: 4
-  epoch: 500
+  epoch: 1000
   reconstr_w: 10
-  identity_w: 5
+  identity_w: 2
 
   lr:
     G: 0.0002
