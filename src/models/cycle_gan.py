@@ -39,6 +39,28 @@ class Downsample(nn.Module):
 
         return x
 
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, hidden_size):
+        super(ResidualBlock, self).__init__()
+
+        self.residual = nn.Sequential(
+            nn.Conv2d(in_channels, hidden_size, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(hidden_size),
+            nn.ReLU(),
+
+            nn.Conv2d(hidden_size, in_channels, kernel_size=3, stride=1, padding=1),
+            nn.InstanceNorm2d(in_channels),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        shortcut = x
+
+        for l in self.residual:
+            x = l(x)
+
+        return x + shortcut
+
 
 class CycleGAN_Unet_Generator(nn.Module):
     def __init__(self, filter=64):
@@ -78,6 +100,50 @@ class CycleGAN_Unet_Generator(nn.Module):
         return out
 
 
+class CycleGAN_Resnet_Generator(nn.Module):
+    def __init__(self, filter=64, residual_block_num=8):
+        super(CycleGAN_Resnet_Generator, self).__init__()
+        self.downsamples = nn.ModuleList([
+            Downsample(3, filter, kernel_size=7, stride=1, apply_instancenorm=False),
+            Downsample(filter, filter * 2, kernel_size=3),
+            Downsample(filter * 2, filter * 4, kernel_size=3),
+        ])
+
+        self.residuals = nn.ModuleList([
+            ResidualBlock(filter * 4, filter * 4) for _ in range(residual_block_num)
+        ])
+
+        self.upsamples = nn.ModuleList([
+            Upsample(filter * 4, filter * 8, kernel_size=4, padding=1),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            Upsample(filter * 8, filter * 16, kernel_size=4, padding=1)
+        ])
+
+        self.last = nn.Sequential(
+            nn.Conv2d(filter * 16, 3, kernel_size=3, stride=1, padding=1),
+            nn.Tanh()
+        )
+
+
+    def forward(self, x):
+        for l in self.downsamples:
+            x = l(x)
+
+        for l in self.residuals:
+            x = l(x)
+
+        print(x.size())
+
+        for l in self.upsamples:
+            x = l(x)
+
+        print(x.size())
+
+        x = self.last(x)
+
+        return x
+
+
 class CycleGAN_Discriminator(nn.Module):
     def __init__(self, filter=64):
         super(CycleGAN_Discriminator, self).__init__()
@@ -101,8 +167,8 @@ class CycleGAN_Discriminator(nn.Module):
 
 if __name__ == '__main__':
     # Sanity Check  --------------------------------------------------
-    z = torch.randn(4, 3, 256, 256)
+    z = torch.randn(2, 3, 256, 256)
 
-    net = CycleGAN_Unet_Generator()
+    net = CycleGAN_Discriminator()
     out = net(z)
     print(out.size())
