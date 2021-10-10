@@ -7,7 +7,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
 from src.utils.lightning import DataModule, CycleGAN_LightningSystem
-from src.models.cycle_gan import CycleGAN_Unet_Generator, CycleGAN_Discriminator
+from src.models.cycle_gan import CycleGAN_Unet_Generator, CycleGAN_Discriminator, CycleGAN_Resnet_Generator
 from src.utils.utils import init_weights
 from src.utils.transforms import ImageTransform
 

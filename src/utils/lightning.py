@@ -78,8 +78,8 @@ class CycleGAN_LightningSystem(pl.LightningModule):
         b = base_img.size()[0]
 
         # Discriminatorの出力に合わせる
-        valid = torch.ones(b, 1, 14, 14).cuda()
-        fake = torch.zeros(b, 1, 14, 14).cuda()
+        valid = torch.ones(b, 1, 30, 30).cuda()
+        fake = torch.zeros(b, 1, 30, 30).cuda()
 
         # Train Generator
         if optimizer_idx == 0 or optimizer_idx == 1:

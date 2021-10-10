@@ -132,12 +132,8 @@ class CycleGAN_Resnet_Generator(nn.Module):
         for l in self.residuals:
             x = l(x)
 
-        print(x.size())
-
         for l in self.upsamples:
             x = l(x)
-
-        print(x.size())
 
         x = self.last(x)
 
@@ -152,7 +148,6 @@ class CycleGAN_Discriminator(nn.Module):
             Downsample(3, filter, kernel_size=4, stride=2, apply_instancenorm=False),
             Downsample(filter, filter * 2, kernel_size=4, stride=2),
             Downsample(filter * 2, filter * 4, kernel_size=4, stride=2),
-            Downsample(filter * 4, filter * 4, kernel_size=4, stride=2),
             Downsample(filter * 4, filter * 8, kernel_size=4, stride=1)
         )
 
